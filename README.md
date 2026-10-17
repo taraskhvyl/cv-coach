@@ -2,8 +2,28 @@
 
 Voice-enabled career coach. Upload your CV, paste a job description, and ask by text or voice. Answers are grounded in your CV via RAG and every LLM call is traced in Langfuse.
 
-```
-mic ──Whisper──▶ question ──▶ embed ──▶ top-k CV chunks ──▶ GPT ──▶ answer ──TTS──▶ spoken reply
+```mermaid
+flowchart LR
+    subgraph Indexing["Indexing (on upload)"]
+        CV[/"CV (PDF/txt)"/] --> SPLIT["Text splitter"] --> EMB["OpenAI embeddings"] --> VS[("In-memory<br/>vector store")]
+    end
+
+    subgraph Turn["Chat turn"]
+        MIC["Voice question"] --> STT["Whisper<br/>speech-to-text"] --> RET["Retrieve top-k<br/>CV chunks"]
+        TXT["Text question"] --> RET
+        JD["Job description"] --> CHAIN
+        RET --> CHAIN["LangChain chain<br/>prompt | GPT | parser"]
+    end
+
+    VS --> RET
+    CHAIN --> ANS["Written answer"]
+    CHAIN -.->|voice questions only| TTS["OpenAI TTS"] --> AUD["Spoken reply"]
+
+    LF{{"Langfuse<br/>one trace per turn"}}
+    STT -.-> LF
+    RET -.-> LF
+    CHAIN -.-> LF
+    TTS -.-> LF
 ```
 
 **Stack:** Python, Gradio, LangChain (splitter, embeddings, vector store, chains), OpenAI (chat, embeddings, Whisper, TTS), Langfuse, Docker.
